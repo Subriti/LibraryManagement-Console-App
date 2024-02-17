@@ -1,7 +1,4 @@
-using System.ComponentModel.DataAnnotations;
 using System.Text;
-using System.Text.Json;
-
 public static class Utilities
 {
     static List<string[]> list = new List<string[]>();
@@ -140,30 +137,8 @@ public static class Utilities
                                         list[b][2] = stockInt.ToString();
                                         Console.WriteLine(list[b][2]);
 
-                                        // reconstructing the LibraryBooks data for .txt file
-                                        string books;
-                                        StringBuilder builder = new StringBuilder();
-                                        foreach (var name in list)
-                                        {
-                                            int ind = 0;
-                                            foreach (var n in name)
-                                            {
-                                               builder.Append(n);
-                                               ind++;
-                                               if (ind < 4)
-                                               {
-                                                 builder.Append(",");
-                                               }
-                                            }
-                                            builder.Append("\n");
-
-                                            books = builder.ToString();
-
-                                            //Writing the Stock-file with updated value of books
-                                            File.WriteAllText(GetBooksFilePath(), books.TrimEnd());
-                                        }
-     /*
-                                        File.WriteAllLines(GetBooksFilePath(), list[i]);*/
+                                        //write to libraryBooks data
+                                        WriteToFile();
 
                                         //for calculating cost
                                         for (int c = 0; c < bookCost.Count; c++)
@@ -204,7 +179,7 @@ public static class Utilities
         }
     }
 
-    public static void DisplayBorrowerDetails()
+    public static string DisplayBorrowerDetails()
     {
         Console.WriteLine("Input Borrower's Name: ");
         string borrowerName = Console.ReadLine();
@@ -219,12 +194,63 @@ public static class Utilities
         {
             Console.WriteLine("No details of the borrower could be found in the Library.");
         }
+
+        return borrowerName;
     }
+    /*
+        //used for serialising object to json
+        public static string ConvertToJSON()
+        {
+            string json = JsonConvert.SerializeObject(this);
+            return json;
+        }*/
 
     public static void ReturnBooks()
     {
+        //check returner
+        string returnerName = DisplayBorrowerDetails();
+
+        //current date time
+        DateTime dateTime = DateTime.Now;
+
+        //Writing Borrower Name and Date-Time of return to the file
+        string details = $"Borrowed By: {returnerName}\n\nDate and Time of Return: {dateTime}\n";
+
+        File.WriteAllText(GetReturnersFilePath(returnerName), details);
 
 
+        Console.WriteLine("Initialising the return.. Updating Stocks..");
+
+
+        var json = File.ReadAllText(GetBorrowersFilePath(returnerName));
+        var detail = json.Split(":");
+        foreach (var d in detail)
+        {
+            if (d.Contains('$'))
+            {
+                details = $"\nThe total order: {d}\n";
+                File.AppendAllText(GetReturnersFilePath(returnerName), details);
+            }
+
+            //searching for the book name in borrower record
+            for (int b = 0; b < list.Count; b++)
+            {
+                if (d.Contains(list[b][0]))
+                {
+                    //Appending the book name
+                    details = $"\nName of the Book: {list[b][0]}";
+                    File.AppendAllText(GetReturnersFilePath(returnerName), details);
+
+                    //updating the stock
+                    var stockInt = int.Parse(list[b][2]) + 1;
+                    list[b][2] = stockInt.ToString();
+
+                    //write to libraryBooks data
+                    WriteToFile();
+                }
+            }
+        }
+        Console.WriteLine("\nThe return was successful. Do visit again :)");
     }
 
     //specifying the location to store the txt files
@@ -233,16 +259,22 @@ public static class Utilities
         return @"C:\Users\Subriti\HelloWorldFromVSCode\";
     }
 
-    //specifying the name and location for storing User data
+    //specifying the name and location for storing Book data
     public static string GetBooksFilePath()
     {
         return Path.Combine(GetFilePath(), "LibraryBooks.txt");
     }
 
-    //specifying the name and location for storing Items data
+    //specifying the name and location for storing Borrower data
     public static string GetBorrowersFilePath(string borrowerName)
     {
         return Path.Combine(GetFilePath(), $"Borrower-{borrowerName.ToUpper()}.txt");
+    }
+
+    //specifying the name and location for storing Returner data
+    public static string GetReturnersFilePath(string returnerName)
+    {
+        return Path.Combine(GetFilePath(), $"Returner-{returnerName.ToUpper()}.txt");
     }
 
     public static void UploadingWithStreamWriter()
@@ -261,9 +293,30 @@ public static class Utilities
         }
     }
 
-    public static void WriteToFile(string details)
+    public static void WriteToFile()
     {
+        // reconstructing the LibraryBooks data for .txt file
+        string books;
+        StringBuilder builder = new StringBuilder();
+        foreach (var name in list)
+        {
+            int ind = 0;
+            foreach (var n in name)
+            {
+                builder.Append(n);
+                ind++;
+                if (ind < 4)
+                {
+                    builder.Append(",");
+                }
+            }
+            builder.Append("\n");
 
+            books = builder.ToString();
+
+            //Writing the Stock-file with updated value of books
+            File.WriteAllText(GetBooksFilePath(), books.TrimEnd());
+        }
     }
 
     public static void DisplayBookNames()
