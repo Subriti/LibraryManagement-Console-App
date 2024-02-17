@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text;
 using System.Text.Json;
 
 public static class Utilities
@@ -10,6 +11,7 @@ public static class Utilities
 
     public static void GetBooks()
     {
+        list.Clear();
         string booksFilePath = GetBooksFilePath();
         if (!File.Exists(booksFilePath))
         {
@@ -46,7 +48,7 @@ public static class Utilities
             }
             //new line for each book detail
             Console.WriteLine("");
-        }           
+        }
     }
 
     public static void BorrowBooks()
@@ -64,8 +66,9 @@ public static class Utilities
             //getting number of books for borrow
             int bookQuantity;
             int errorCounter = 0;
-            List<string> bookName = new List<string>();
+            List<string> borrowBookName = new List<string>();
             int count = 0;
+            float total = 0.0F;
 
             Console.Write("\n Enter number of books you want to borrow: ");
             if (int.TryParse(Console.ReadLine(), out bookQuantity))
@@ -76,15 +79,14 @@ public static class Utilities
                 }
                 else
                 {
-
                     for (int i = 0; i < bookQuantity; i++)
                     {
-                        Console.WriteLine("\n Enter name of the book you would like to borrow: ");
+                        Console.WriteLine("\nEnter name of the book you would like to borrow: ");
                         var book = Console.ReadLine();
 
-                        foreach (string name in bookName)
+                        foreach (string name in borrowBookName)
                         {
-                            //checking for redundant entries
+                            //checking for redundant entries for borrowing
                             if (book == name)
                             {
                                 Console.WriteLine("You can't borrow same book twice.");
@@ -109,43 +111,91 @@ public static class Utilities
                                 {
                                     if (int.Parse(list[b][2]) == 0)
                                     {
-                                        Console.WriteLine($"\n {book} is not available at the moment.\nPlease place an order for some other book :)");
-                                        errorCounter = 1;
+                                        Console.WriteLine($"\n{book} is not available at the moment.\nPlease place an order for some other book :)");
+                                        return;
                                     }
                                     else
                                     {
-                                        bookName.Add(book);
+                                        //current date time
+                                        DateTime dateTime = DateTime.Now;
+
+                                        //for return date
+                                        DateTime returnDateTime = dateTime.AddDays(10);
+
+                                        //Writing Borrower Name and Date-Time of issue to the file
+                                        string details = $"Borrowed By: {borrowerName}\n\nDate and Time of Issue: {dateTime}\nLast Date of Return: {returnDateTime}\n";
+                                        File.WriteAllText(borrowersFilePath, details);
+
+                                        borrowBookName.Add(book);
+
+                                        //Writing to the Borrower's file the Borrowed Book'Name
+                                        foreach (var name in borrowBookName)
+                                        {
+                                            details = $"\nName of the Book: {name}";
+                                            File.AppendAllText(borrowersFilePath, details);
+                                        }
 
                                         //updating the stock
+                                        var stockInt = int.Parse(list[b][2]) - 1;
+                                        list[b][2] = stockInt.ToString();
+                                        Console.WriteLine(list[b][2]);
 
+                                        // reconstructing the LibraryBooks data for .txt file
+                                        string books;
+                                        StringBuilder builder = new StringBuilder();
+                                        foreach (var name in list)
+                                        {
+                                            int ind = 0;
+                                            foreach (var n in name)
+                                            {
+                                               builder.Append(n);
+                                               ind++;
+                                               if (ind < 4)
+                                               {
+                                                 builder.Append(",");
+                                               }
+                                            }
+                                            builder.Append("\n");
+
+                                            books = builder.ToString();
+
+                                            //Writing the Stock-file with updated value of books
+                                            File.WriteAllText(GetBooksFilePath(), books.TrimEnd());
+                                        }
+     /*
+                                        File.WriteAllLines(GetBooksFilePath(), list[i]);*/
+
+                                        //for calculating cost
+                                        for (int c = 0; c < bookCost.Count; c++)
+                                        {
+                                            if (book.ToUpper() == bookNames[c].ToUpper())
+                                            {
+                                                total += float.Parse(bookCost[c]);
+                                            }
+                                        }
+                                        if (total != 0.0F && count == (bookQuantity - 1))
+                                        {
+                                            Console.WriteLine("\nYour total is $"+ total);
+                                        }
+
+                                        //Writing the cost of the book to the file
+                                        details = $"\nYour total is: ${total}\n";
+
+                                        Console.WriteLine(details);
+
+                                        File.AppendAllText(borrowersFilePath, details);
                                     }
                                 }
                             }
-
-
-
-
                         }
                     }
+                    Console.WriteLine("\n ----- Thankyou for borrowing from us ! -----");
                 }
             }
             else
             {
                 Console.WriteLine("Please input valid integers");
             }
-
-
-            //current date time
-            DateTime dateTime = DateTime.Now;
-
-            //for return date
-            DateTime returnDateTime = dateTime.AddDays(10);
-
-            //Writing Borrower Name and Date-Time of issue to the file
-            string details = $"Borrowed By: {borrowerName}\n\nDate and Time of Issue: {dateTime}\nLast Date of Return: {returnDateTime}\n";
-            Console.WriteLine(details);
-            //File.WriteAllText(borrowersFilePath, details);
-
         }
         else
         {
@@ -226,8 +276,8 @@ public static class Utilities
         //extracting individual book detail
         foreach (var bookDetail in list)
         {
-           bookName.Add(bookDetail[0]);
-           costs.Add(bookDetail[3].Trim('$'));
+            bookName.Add(bookDetail[0]);
+            costs.Add(bookDetail[3].Trim('$'));
         }
 
         bookNames = bookName;
