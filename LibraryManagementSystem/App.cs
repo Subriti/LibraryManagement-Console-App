@@ -1,13 +1,17 @@
 public class App{
 
     public void ShowMenu(){
-        Console.WriteLine("\nChoose the action you want to do: ");
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("\n\nChoose the action you want to do: ");
+        Console.WriteLine("---------------------------------------");
         Console.WriteLine("1. Display Book Record");
         Console.WriteLine("2. Borrow Book");
         Console.WriteLine("3. Display Borrower Record");
         Console.WriteLine("4. Return Book");
         Console.WriteLine("5. Exit the application");
 
+        Console.ForegroundColor = ConsoleColor.White;
+        Console.Write("\nYour Selection: ");
         PerformFunctions(Console.ReadLine());
     }
 

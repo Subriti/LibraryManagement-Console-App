@@ -2,18 +2,24 @@ using System.Text;
 public static class Utilities
 {
     static List<string[]> list = new List<string[]>();
-
     static List<string> bookNames = new List<string>();
     static List<string> bookCost = new List<string>();
 
+    static List<string> borrowBookName = new List<string>();
+    static int errorCounter = 0;
+    static float total = 0;
+
     public static void GetBooks()
     {
+        string booksFilePath= GetBooksFilePath();
+
+        CheckFileExists(booksFilePath);
+        GetBookDetails(booksFilePath);        
+    }
+
+    private static void GetBookDetails(string booksFilePath)
+    {
         list.Clear();
-        string booksFilePath = GetBooksFilePath();
-        if (!File.Exists(booksFilePath))
-        {
-            Console.WriteLine("No Books in the Library.");
-        }
 
         var data = File.ReadAllText(booksFilePath);
 
@@ -27,6 +33,14 @@ public static class Utilities
 
             //stored into a global variable
             list.Add(bookDetail);
+        }
+    }
+
+    private static void CheckFileExists(string booksFilePath)
+    {
+        if (!File.Exists(booksFilePath))
+        {
+            Console.WriteLine("The file does not exist: No Books in the Library.");
         }
     }
 
@@ -55,127 +69,157 @@ public static class Utilities
 
         if (borrowerName.All(char.IsLetter))
         {
-            string borrowersFilePath = GetBorrowersFilePath(borrowerName);
-
             //display books
             DisplayBookNames();
-
-            //getting number of books for borrow
-            int bookQuantity;
-            int errorCounter = 0;
-            List<string> borrowBookName = new List<string>();
-            int count = 0;
-            float total = 0.0F;
-
-            Console.Write("\n Enter number of books you want to borrow: ");
-            if (int.TryParse(Console.ReadLine(), out bookQuantity))
-            {
-                if (bookQuantity < 0)
-                {
-                    Console.WriteLine("Please input positive integer");
-                }
-                else
-                {
-                    for (int i = 0; i < bookQuantity; i++)
-                    {
-                        Console.WriteLine("\nEnter name of the book you would like to borrow: ");
-                        var book = Console.ReadLine();
-
-                        foreach (string name in borrowBookName)
-                        {
-                            //checking for redundant entries for borrowing
-                            if (book == name)
-                            {
-                                Console.WriteLine("You can't borrow same book twice.");
-                                errorCounter = 1;
-                            }
-                        }
-
-                        if (errorCounter == 0)
-                        {
-                            //checking if the book entered exists in the library
-                            if (!bookNames.Contains(book))
-                            {
-                                Console.WriteLine($"The Book {book} is not available in our library. Please type in properly.");
-                                return;
-                            }
-
-                            //checking if quantity of book is available
-                            for (int b = 0; b < list.Count; b++)
-                            {
-                                //matching book name
-                                if (book == list[b][0])
-                                {
-                                    if (int.Parse(list[b][2]) == 0)
-                                    {
-                                        Console.WriteLine($"\n{book} is not available at the moment.\nPlease place an order for some other book :)");
-                                        return;
-                                    }
-                                    else
-                                    {
-                                        //current date time
-                                        DateTime dateTime = DateTime.Now;
-
-                                        //for return date
-                                        DateTime returnDateTime = dateTime.AddDays(10);
-
-                                        //Writing Borrower Name and Date-Time of issue to the file
-                                        string details = $"Borrowed By: {borrowerName}\n\nDate and Time of Issue: {dateTime}\nLast Date of Return: {returnDateTime}\n";
-                                        File.WriteAllText(borrowersFilePath, details);
-
-                                        borrowBookName.Add(book);
-
-                                        //Writing to the Borrower's file the Borrowed Book'Name
-                                        foreach (var name in borrowBookName)
-                                        {
-                                            details = $"\nName of the Book: {name}";
-                                            File.AppendAllText(borrowersFilePath, details);
-                                        }
-
-                                        //updating the stock
-                                        var stockInt = int.Parse(list[b][2]) - 1;
-                                        list[b][2] = stockInt.ToString();
-                                        Console.WriteLine(list[b][2]);
-
-                                        //write to libraryBooks data
-                                        WriteToFile();
-
-                                        //for calculating cost
-                                        for (int c = 0; c < bookCost.Count; c++)
-                                        {
-                                            if (book.ToUpper() == bookNames[c].ToUpper())
-                                            {
-                                                total += float.Parse(bookCost[c]);
-                                            }
-                                        }
-                                        if (total != 0.0F && count == (bookQuantity - 1))
-                                        {
-                                            Console.WriteLine("\nYour total is $"+ total);
-                                        }
-
-                                        //Writing the cost of the book to the file
-                                        details = $"\nYour total is: ${total}\n";
-
-                                        Console.WriteLine(details);
-
-                                        File.AppendAllText(borrowersFilePath, details);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Console.WriteLine("\n ----- Thankyou for borrowing from us ! -----");
-                }
-            }
-            else
-            {
-                Console.WriteLine("Please input valid integers");
-            }
+            GetNumberOfBooksForBorrow(borrowerName);
         }
         else
         {
             Console.WriteLine("Please input alphabet from: A-Z");
             BorrowBooks();
+        }
+    }
+
+    private static void GetNumberOfBooksForBorrow(string borrowerName)
+    {
+        int bookQuantity;
+        Console.Write("\n Enter number of books you want to borrow: ");
+
+        if (int.TryParse(Console.ReadLine(), out bookQuantity))
+        {
+            ValidateBookQuantity(bookQuantity, borrowerName);
+        }
+        else
+        {
+            Console.WriteLine("Please input valid integers");
+        }
+    }
+
+    private static void ValidateBookQuantity(int bookQuantity, string borrowerName)
+    {
+        if (bookQuantity < 0)
+        {
+            Console.WriteLine("Please input positive integer");
+        }
+        else
+        {
+            //get BookName
+            GetBookName(bookQuantity, borrowerName);
+        }
+    }
+
+    private static void GetBookName(int bookQuantity, string borrowerName)
+    {
+        for (int i = 0; i < bookQuantity; i++)
+        {
+            Console.WriteLine("\nEnter name of the book you would like to borrow: ");
+            var book = Console.ReadLine();
+
+            CheckForRedundantBookEntry(book, errorCounter);
+            if (errorCounter == 0)
+            {
+                CheckBookExists(book);
+                CheckBookQuantity(book, borrowerName);
+            }
+        }
+    }
+
+    private static void CheckBookQuantity(string book, string borrowerName)
+    {
+        for (int b = 0; b < list.Count; b++)
+        {
+            //matching book name
+            if (book == list[b][0])
+            {
+                if (int.Parse(list[b][2]) == 0)
+                {
+                    Console.WriteLine($"\n{book} is not available at the moment.\nPlease place an order for some other book :)");
+                    return;
+                }
+                else
+                {
+                    borrowBookName.Add(book);
+
+                    CalculateCost(book);
+
+                    //write to borrower file
+                    WriteToBorrowerFile(borrowerName, book);
+
+                    //updating the stock
+                    var stockInt = int.Parse(list[b][2]) - 1;
+                    list[b][2] = stockInt.ToString();
+
+                    //write to libraryBooks data
+                    WriteToFile();
+
+                    Console.WriteLine("\n ----- Thankyou for borrowing from us ! -----");
+                }
+            }
+        }
+    }
+
+    private static void WriteToBorrowerFile(string borrowerName, string book)
+    {
+        string borrowersFilePath = GetBorrowersFilePath(borrowerName);
+
+        //current date time
+        DateTime dateTime = DateTime.Now;
+
+        //for return date
+        DateTime returnDateTime = dateTime.AddDays(10);
+
+        //Writing Borrower Name and Date-Time of issue to the file
+        string details = $"Borrowed By: {borrowerName}\n\nDate and Time of Issue: {dateTime}\nLast Date of Return: {returnDateTime}\n";
+        File.WriteAllText(borrowersFilePath, details);
+
+        //Writing to the Borrower's file the Borrowed Book'Name
+        foreach (var name in borrowBookName)
+        {
+            details = $"\nName of the Book: {name}";
+            File.AppendAllText(borrowersFilePath, details);
+        }
+
+        //Writing the cost of the book to the file
+        details = $"\nYour total is: ${total}\n";
+
+        Console.WriteLine(details);
+
+        File.AppendAllText(borrowersFilePath, details);
+    }
+
+    private static float CalculateCost(string book)
+    {
+        //for calculating cost
+        for (int c = 0; c < bookCost.Count; c++)
+        {
+            if (book.ToUpper() == bookNames[c].ToUpper())
+            {
+                total += float.Parse(bookCost[c]);
+            }
+        }
+        return total;
+    }
+
+    private static void CheckBookExists(string book)
+    {
+        //checking if the book entered exists in the library
+        if (!bookNames.Contains(book))
+        {
+            Console.WriteLine($"The Book {book} is not available in our library. Please type in properly.");
+            return;
+        }
+    }
+
+    private static void CheckForRedundantBookEntry(string book, int errorCounter)
+    {
+        foreach (string name in borrowBookName)
+        {
+            //checking for redundant entries for borrowing
+            if (book == name)
+            {
+                Console.WriteLine("You can't borrow same book twice.");
+                errorCounter = 1;
+            }
         }
     }
 
@@ -218,10 +262,13 @@ public static class Utilities
 
         File.WriteAllText(GetReturnersFilePath(returnerName), details);
 
-
         Console.WriteLine("Initialising the return.. Updating Stocks..");
 
+        InitializeReturn(returnerName, details);
+    }
 
+    private static void InitializeReturn(string returnerName, string details)
+    {
         var json = File.ReadAllText(GetBorrowersFilePath(returnerName));
         var detail = json.Split(":");
         foreach (var d in detail)
@@ -250,6 +297,9 @@ public static class Utilities
                 }
             }
         }
+
+        //on success, delete the borrower file
+        File.Delete(GetBorrowersFilePath(returnerName));
         Console.WriteLine("\nThe return was successful. Do visit again :)");
     }
 
